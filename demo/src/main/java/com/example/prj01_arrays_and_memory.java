@@ -3,12 +3,17 @@ package com.example;
 public class prj01_arrays_and_memory {
 
     public static void main(String[] args) {
-        int rows = 4000;
-        int cols = 4000;
+        int rows = 1000;
+        int cols = 1000;
 
         System.out.printf("Velikost matice: %d x %d\n", rows, cols);
 
         double[][] a = allocateAndFill(rows, cols);
+        double[][] b = allocateAndFill(cols, rows);
+        double[][] c = allocateAndFill(cols, rows);
+        double[][] tr = allocateAndFill(rows, cols);
+        
+        
 
         // Měření: po řádcích
         long t0 = System.nanoTime();
@@ -22,13 +27,19 @@ public class prj01_arrays_and_memory {
 
         // Měření: po řádcích po transpozici ze sloupců
         long t4 = System.nanoTime();
-        double[][] b = doTransposition(a);
+        doTransposition(a, b);
         double sum3 = sumRowMajor(b);
         long t5 = System.nanoTime();
 
+        // Měření: nasobeni matice
+        long tn0 = System.nanoTime();
+        doTransposition(b, tr);
+        matrixMultiply(a, tr, c);
+        long tn1 = System.nanoTime();
+
         // Měření: transpozice se změněným pořadím smyček (lepší lokalita zápisu)
         long t6 = System.nanoTime();
-        double[][] c = doTranspositionSwapped(a);
+        double[][] cc = doTranspositionSwapped(a);
         double sum4 = sumRowMajor(c);
         long t7 = System.nanoTime();
 
@@ -54,6 +65,8 @@ public class prj01_arrays_and_memory {
         double transpositionTiledTime = (t9 - t8) / 1_000_000_000.0;
         double transpositionFlatTime = (t11 - t10) / 1_000_000_000.0;
 
+        double multTime = (tn1 - tn0) / 1_000_000_000.0;
+
         System.out.printf("sum A: %f\n", sum);
         System.out.printf("sum B: %f\n", sum2);
         System.out.printf("sum C: %f\n", sum3);
@@ -67,6 +80,30 @@ public class prj01_arrays_and_memory {
         System.out.printf("Po transpozici (swapped loops): %.3fs\n", transpositionSwappedTime);
         System.out.printf("Po transpozici (tiled %d): %.3fs\n", block, transpositionTiledTime);
         System.out.printf("Po transpozici (flat 1D): %.3fs\n", transpositionFlatTime);
+
+        System.out.printf("Nasobeni matice: %.3fs\n", multTime);
+    }
+
+    private static void matrixMultiply(double[][] a, double[][] b, double[][] c) {
+
+        int m = a.length;
+        int n = b[0].length;
+        int kk = a[0].length;
+        int p = b.length;
+
+        if (kk != p) {
+            throw new IllegalArgumentException("Matice nelze nasobit");
+        }
+
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                for (int k = 0; k < p; k++) {
+                    c[i][j] += a[i][k] * b[j][k];
+                }
+            }
+        }
+
+
     }
 
     private static double[][] allocateAndFill(int rows, int cols) {
@@ -108,17 +145,15 @@ public class prj01_arrays_and_memory {
     }
 
     // Provede transpozici matice
-    private static double[][] doTransposition(double[][] a) {
+    private static void doTransposition(double[][] a, double[][] b) {
         int rows = a.length;
         int cols = a[0].length;
-        double[][] b = new double[cols][rows];
         for (int rowIndex = 0; rowIndex < rows; rowIndex++) {
             double[] aRow = a[rowIndex];
             for (int colIndex = 0; colIndex < cols; colIndex++) {
                 b[colIndex][rowIndex] = aRow[colIndex];
             }
         }
-        return b;
     }
 
     // Transpozice se změněným pořadím smyček: lepší lokalita pro zápis do b
